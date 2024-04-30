@@ -1,22 +1,98 @@
-// Define an async function
-async function migrateToMpl() {
-    const ix = createMigrateToMplInstruction({
-        policy: "2jfkE654yAZDP3FfowFZ2bwA5MbQKnAWZaEQv44L1BB4",
-        freezeAuthority: findFreezeAuthorityPk("2jfkE654yAZDP3FfowFZ2bwA5MbQKnAWZaEQv44L1BB4"),
-        mint: "2HgRnPXNWaKbVhfoJnrDGwPbGxbsv2uHi3vo1Qar7Su3",
-        metadata: findMetadataPda("2HgRnPXNWaKbVhfoJnrDGwPbGxbsv2uHi3vo1Qar7Su3"),
-        mintState: findMintStatePk("2HgRnPXNWaKbVhfoJnrDGwPbGxbsv2uHi3vo1Qar7Su3"),
-        from: "./keypair.json",
-        fromAccount: tokenAccount,
-        cmtProgram: CMT_PROGRAM,
-        instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
-        edition: findMasterEditionV2Pda("2HgRnPXNWaKbVhfoJnrDGwPbGxbsv2uHi3vo1Qar7Su3"),
-        metadataProgram: TokenMetadataProgram.publicKey,
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Solana Wallet NFT Burner</title>
+  <script>script.js</script>
+</head>
+<body>
+  <h1>Solana Wallet NFT Burner</h1>
+  <button id="connect-button">Connect Wallet</button>
+  <div id="connected-message"></div>
+  <button id="choose-nft-button">Choose NFT</button>
+  <div id="nft-list"></div>
+  <button id="burn-nft-button">Burn NFT</button>
+  <div id="burn-success-message"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/solana-web3@1.3.0/dist/solana-web3.min.js"></script>
+  <script>
+    const connectButton = document.getElementById('connect-button');
+    const connectedMessage = document.getElementById('connected-message');
+    const chooseNftButton = document.getElementById('choose-nft-button');
+    const nftList = document.getElementById('nft-list');
+    const burnNftButton = document.getElementById('burn-nft-button');
+    const burnSuccessMessage = document.getElementById('burn-success-message');
+
+    let wallet;
+    let nftSelected;
+
+    connectButton.addEventListener('click', async () => {
+      try {
+        const response = await fetch('https://api.devnet.solana.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method: 'getProgramAccounts',
+            jsonrpc: '2.0',
+            id: 1,
+          }),
+        });
+
+        const accounts = await response.json();
+        const walletAddress = accounts[0].account.data;
+
+        // Create a new Solana wallet instance
+        wallet = new solana.Web3(new solana.Connection('https://api.devnet.solana.com'));
+
+        // Connect to the wallet
+        const connection = await wallet.connect(walletAddress);
+
+        // Display a success message
+        connectedMessage.textContent = `Connected to wallet: ${walletAddress}`;
+      } catch (error) {
+        console.error(error);
+        connectedMessage.textContent = 'Error connecting to wallet';
+      }
     });
 
-    // Now it's valid to use await because it's inside an async function
-    await process_tx(conn, [ix], "./keypair.json");
-}
+    chooseNftButton.addEventListener('click', async () => {
+      if (!wallet) {
+        return;
+      }
 
-// Call the async function
-migrateToMpl();
+      // Get a list of NFTs owned by the user
+      const nfts = await wallet.getNfts();
+
+      // Display the list of NFTs
+      nftList.innerHTML = '';
+      nfts.forEach((nft) => {
+        const nftOption = document.createElement('option');
+        nftOption.textContent = nft.name;
+        nftOption.value = nft.mint;
+        nftList.appendChild(nftOption);
+      });
+
+      // Set the event handler for the NFT selection
+      nftList.addEventListener('change', (event) => {
+        nftSelected = event.target.value;
+      });
+    });
+
+    burnNftButton.addEventListener('click', async () => {
+      if (!wallet || !nftSelected) {
+        return;
+      }
+
+      // Burn the selected NFT
+      try {
+        const burnTx = await wallet.burnNft(nftSelected);
+
+        // Display a success message
+        burnSuccessMessage.textContent = `NFT burned: ${nftSelected}`;
+      } catch (error) {
+        console.error(error);
+        burnSuccessMessage.textContent = 'Error burning NFT';
+      }
+    });
+  </script>
+</body>
+</html>
